@@ -2,8 +2,8 @@ ruleset use_twilio_keys {
     meta {
         use module twilio_keys
         use module twilio_v2 alias twilio
-            with account_sid = keys:twilio{"account_sid"}
-                auth_token =  keys:twilio{"auth_token"}
+            with account_sid = keys:tkeys{"account_sid"}
+                auth_token =  keys:tkeys{"auth_token"}
         shares __testing
     }
 
@@ -11,7 +11,7 @@ ruleset use_twilio_keys {
         __testing = { 
             "queries": [{ "name": "__testing" } ],
             "events": [ 
-                { "domain": "test", "type": "send_message", "attrs": ["to", "from", "message"] },
+                { "domain": "test", "type": "new_message", "attrs": ["to", "from", "message"] },
                 { "domain": "test", "type": "get_messages", "attrs": ["to", "from", "pageSize"] }
              ]
             }
