@@ -10,7 +10,7 @@ ruleset wovyn_base {
         __testing = { "queries": [ { "name": "__testing" } ],
                     "events": [ { "domain": "wovyn", "type": "heartbeat",
                                 "attrs": [ "genericThing" ] } ] }
-        temperature_threshold = 69
+        temperature_threshold = 80
         violation_phone_number = "+18019404120"
         from_number = "+12055767418"
     }
@@ -42,7 +42,7 @@ ruleset wovyn_base {
   rule process_heartbeat {
     select when wovyn heartbeat where genericThing
     pre {
-        temp = event:attr("genericThing"){"data"}{"temperature"}[0]{"temperatureF"}
+        temp = event:attr("genericThing"){"data"}{"temperature"}[0]{"temperatureF"}.klog()
         timestamp = time:now()
     }
 
