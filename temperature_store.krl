@@ -1,4 +1,3 @@
-
 ruleset temperature_store {
     meta {
         provides temperatures, threshold_violations, inrange_temperatures
@@ -36,8 +35,7 @@ ruleset temperature_store {
         }
 
         always {
-            ent:all_temps := ent:all_temps.defaultsTo([]);
-            ent:all_temps := ent:all_temps.append({"time": time, "temp": temp})
+            ent:all_temps := ent:all_temps.defaultsTo([]).append({"time": time, "temp": temp})
         }
     }
 
@@ -49,8 +47,8 @@ ruleset temperature_store {
         }
 
         always {
-            ent:all_violations := ent:all_violations.defaultsTo([]);
-            ent:all_violations := ent:all_violations.append({"time": time, "temp": temp})
+            ent:all_violations := ent:all_violations.defaultsTo([]).append({"time": time, "temp": temp})
+            ent:all_temps := ent:all_temps.append({"time": time, "temp": temp})
         }
     }
 
