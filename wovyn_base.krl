@@ -2,22 +2,23 @@ ruleset wovyn_base {
     meta {
         use module twilio_keys
         use module twilio_v2 alias twilio
-            with account_sid = keys:tkeys("account_sid")
-            auth_token =  keys:tkeys("auth_token")
+            with account_sid = keys:tkeys{"account_sid"}
+            auth_token =  keys:tkeys{"auth_token"}
+        use module sensor_profile
         shares __testing
     }
     global {
         __testing = { "queries": [ { "name": "__testing" } ],
                     "events": [ { "domain": "wovyn", "type": "heartbeat",
                                 "attrs": [ "genericThing" ] } ] }
-        temperature_threshold = 80
-        violation_phone_number = "+18019404120"
+        // temperature_threshold = 80
+        // violation_phone_number = "+18019404120"
         from_number = "+12055767418"
     }
 
   rule threshold_notification {
       select when wovyn threshold_violation
-      twilio:send_sms(violation_phone_number,
+      twilio:send_sms(sensor_profile:get_profile(){"number"},
                         from_number,
                         "Temp violation: " + event:attr("temperature") + " on " + event:attr("timestamp")
                         )
@@ -27,7 +28,8 @@ ruleset wovyn_base {
       select when wovyn new_temperature_reading
       pre {
           temp = event:attr("temperature")
-          violation = temp > temperature_threshold
+          threshold = sensor_profile:get_profile(){"high"}.as("Number")
+          violation = (temp > threshold)
       }
 
       if violation then
