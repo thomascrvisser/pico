@@ -20,7 +20,7 @@ ruleset manage_sensors {
             sensors().map(getTemp)
         }
 
-        defaultThreshold = 90;
+        defaultThreshold = 96;
 
         __testing = { "queries": [ { "name": "__testing" }, {"name": "sensors"}, {"name": "getAllTemps"} ],
                         "events": [ { "domain": "sensor", "type": "new_sensor",
@@ -54,7 +54,7 @@ ruleset manage_sensors {
     }
 
     rule store_new_sensor {
-        select when wrangler new_child_created
+        select when wrangler child_initialized
         pre {
             the_sensor = {"id": event:attr("id"), "eci": event:attr("eci")}
             sensor_name = event:attr("name")
@@ -68,6 +68,7 @@ ruleset manage_sensors {
         always {
             ent:sensors := ent:sensors.defaultsTo({});
             ent:sensors{[sensor_name]} := the_sensor
+            
         }
     }
 
