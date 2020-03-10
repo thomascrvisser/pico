@@ -2,8 +2,8 @@ ruleset management_profile {
     meta {
         use module twilio_keys
         use module twilio_v2 alias twilio
-            with account_sid = keys:tkeys("account_sid")
-            auth_token =  keys:tkeys("auth_token")
+            with account_sid = keys:tkeys{"account_sid"}
+            auth_token =  keys:tkeys{"auth_token"}
         
     }
     
