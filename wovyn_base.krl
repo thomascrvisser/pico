@@ -6,6 +6,7 @@ ruleset wovyn_base {
         //    with account_sid = keys:tkeys{"account_sid"}
         //    auth_token =  keys:tkeys{"auth_token"}
         use module sensor_profile
+        use module temperature_store
         shares __testing
     }
     global {
@@ -15,6 +16,18 @@ ruleset wovyn_base {
         // temperature_threshold = 80
         // violation_phone_number = "+18019404120"
         //from_number = "+12055767418"
+    }
+
+    rule start_gen_report {
+      select when report sensor_gen_report
+      pre {
+          temps = temperature_store:temperatures()
+      }
+       event:send(
+            { "eci": event:attr("Rx"), "eid": "reportDone",
+            "domain": "report", "type": "sensor_gen_report_finished",
+            "attrs": {"temps": temps, "Tx": event:attr("Tx"), "corrId": event:attr("corrId")} }
+        )
     }
 
   rule threshold_notification {

@@ -1,6 +1,6 @@
 ruleset manage_sensors {
     meta {
-        shares __testing, sensors, getAllTemps
+        shares __testing, sensors, getAllTemps, getReports
         use module io.picolabs.subscription alias Subscriptions
         use module management_profile
         use module io.picolabs.wrangler alias wrangler
@@ -10,35 +10,84 @@ ruleset manage_sensors {
             Subscriptions:established("Rx_role", "temp_sensor")
         }
 
-        // cloud_url = "http://localhost:8080/sky/cloud/";
+        getReports = function() {
+            // Return 5 most recent reports
+            reversed = ent:finishedReports.defaultsTo([]).reverse();
+            len = reversed.length() > 4 => 4 | reversed.length();
+            reversed.slice(len)
+        }
+
+        getAllTemps = function() {
         
-        // getTemp = function(v, k, host) {
-        //     eci = v{"Tx"};
-        //     url = host + eci + "/temperature_store/temperatures";
-        //     response = http:get(url);
-        //     response{"content"}.decode();
-        // }
-
-      getAllTemps = function() {
-        
-        temps = sensors().map(function(x){
-          wrangler:skyQuery(x{"Tx"}, "temperature_store", "temperatures", {},(x{"Tx_host"}) => x{"Tx_host"} | "http://localhost:8080")
-        });
-        temps
-    }
+            temps = sensors().map(function(x){
+            wrangler:skyQuery(x{"Tx"}, "temperature_store", "temperatures", {},(x{"Tx_host"}) => x{"Tx_host"} | "http://localhost:8080")
+            });
+            temps
+        }
 
 
-        //defaultThreshold = 96;
-
-        __testing = { "queries": [ { "name": "__testing" }, {"name": "sensors"}, {"name": "getAllTemps"} ],
+        __testing = { "queries": [ { "name": "__testing" }, {"name": "sensors"}, {"name": "getReports"} ],
                         "events": [ { "domain": "sensor", "type": "new_sensor",
                                     "attrs": [ "name" ] },
                                     {"domain": "sensor", "type": "introduce", "attrs": ["name", "eci", "host"]},
                                     {"domain": "collection", "type": "empty",
                                     "attrs": []},
                                     {"domain": "sensor", "type": "unneeded_sensor", 
-                                    "attrs": ["name"]} ] }
+                                    "attrs": ["name"]},
+                                    {"domain": "report", "type": "start", 
+                                    "attrs": []} ] }
     }
+
+    rule start_report_gen {
+        select when report start
+        pre {
+            corrId = random:uuid()
+        }
+        always {
+            ent:reportsInProgress := ent:reportsInProgress.defaultsTo({});
+            ent:reportsInProgress := ent:reportsInProgress.put([corrId], {"temperature_sensors": sensors().length(), "temperatures": []});
+            raise report event "sendStartToEachPico" attributes {"corrId": corrId}
+        }
+    }
+
+    rule send_start_report_gen_to_each {
+        select when report sendStartToEachPico
+        foreach sensors() setting(sensor)
+        pre {
+            send_attrs = {"Rx": sensor{"Rx"}, "Tx": sensor{"Tx"}, "corrId": event:attr("corrId")}
+        }
+        event:send(
+            { "eci": sensor{"Tx"}, "eid": "reportStart",
+            "domain": "report", "type": "sensor_gen_report",
+            "attrs": send_attrs }
+        )
+    }
+
+    rule received_single_report {
+        select when report sensor_gen_report_finished
+        pre {
+            corrId = event:attr("corrId")
+            tx = event:attr("Tx")
+            temps = event:attr("temps")
+            report = ent:reportsInProgress{corrId}
+            newReportList = report{"temperatures"}.append({"tx": tx, "temps": temps})
+        }
+        if (report["temperature_sensors"] == newReportList.length()) then noop()
+        fired {
+            // Move to finished list
+            ent:reportsInProgress := ent:reportsInProgress.put([corrId], {"temperature_sensors": report["temperature_sensors"], "temperatures": newReportList});
+            ent:finishedReports := ent:finishedReports.defaultsTo([]).append({
+                "temperature_sensors": ent:reportsInProgress{[corrId, "temperature_sensors"]},
+                "responding": ent:reportsInProgress{[corrId, "temperatures"]}.length(),
+                "temperatures": ent:reportsInProgress{[corrId, "temperatures"]}
+            })
+        } else {
+            // Add to list of respondants
+            ent:reportsInProgress := ent:reportsInProgress.put([corrId], {"temperature_sensors": report["temperature_sensors"], "temperatures": newReportList});
+        }
+    }
+
+
 
     rule empty_collection {
         select when collection empty
